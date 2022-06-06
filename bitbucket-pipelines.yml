@@ -1,0 +1,29 @@
+pipelines:
+  branches:
+    master:
+    - step:
+        image: node:12.20.0-alpine3.10
+        caches:
+          - node
+        deployment: test
+        name: Deploy to dev
+        script:
+          - apk add gettext jq --no-cache python && apk add --no-cache --virtual .build-deps py-pip && pip install awscli && apk del .build-deps 
+          - npm ci
+          - npm run build --prod
+          - aws s3 sync dist/ s3://com.avblox.admin.portal-dev/ --acl public-read
+          - aws cloudfront create-invalidation --distribution-id EPUF3VJ57WI0U --paths "/*"
+    - step:
+        image: node:12.20.0-alpine3.10
+        caches:
+          - node
+        trigger: manual
+        deployment: production
+        name: Deploy to production
+        script:
+          - apk add gettext jq --no-cache python && apk add --no-cache --virtual .build-deps py-pip && pip install awscli && apk del .build-deps
+          - npm ci
+          - npm run build --prod
+          - aws s3 sync dist/ s3://com.avblox.admin.portal/ --acl public-read
+          - aws cloudfront create-invalidation --distribution-id E1JRBF6ECINK2D --paths "/*"
+    
